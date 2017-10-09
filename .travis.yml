@@ -19,8 +19,9 @@ addons:
      - graphviz
      - gcc-4.8
      - g++-4.8
-     - libc6
 
 before_install:
   - export TRAVIS=scripts/travis
   - source ${TRAVIS}/travis_setup_env.sh
+  - sudo apt-get update
+  - sudo apt-get -y install --only-upgrade libc6
