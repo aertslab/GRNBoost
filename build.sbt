@@ -12,9 +12,9 @@ javaOptions ++= Seq("-Xms1G", "-Xmx8G", "-XX:MaxPermSize=8G", "-XX:+CMSClassUnlo
 parallelExecution in Test := false
 
 // uncomment with respect to your operating system if you do not have xgboost in your Maven repository
-unmanagedBase := baseDirectory.value / "lib_amazon_linux"
+// unmanagedBase := baseDirectory.value / "lib_amazon_linux"
 // unmanagedBase := baseDirectory.value / "lib_max_os"
-// unmanagedBase := baseDirectory.value / "lib_ubuntu"
+unmanagedBase := baseDirectory.value / "lib_ubuntu"
 
 // See http://stackoverflow.com/questions/28565837/filename-too-long-sbt
 scalacOptions ++= Seq("-Xmax-classfile-name","78")
