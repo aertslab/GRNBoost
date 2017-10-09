@@ -10,7 +10,7 @@ This page describes how to obtain GRNBoost on different operating systems.
 
 ## 1 Download Pre-built Artifacts
 
-TODO See Github releases
+TODO
 
 ## 2 Build GRNBoost from Source
 
