@@ -11,7 +11,7 @@ sparkComponents ++= Seq("core", "mllib", "sql", "hive")
 javaOptions ++= Seq("-Xms1G", "-Xmx8G", "-XX:MaxPermSize=8G", "-XX:+CMSClassUnloadingEnabled")
 parallelExecution in Test := false
 
-// uncomment with respect to your operating system.
+// uncomment with respect to your operating system if you do not have xgboost in your Maven repository
 // unmanagedBase := baseDirectory.value / "lib_amazon_linux"
 // unmanagedBase := baseDirectory.value / "lib_max_os"
 unmanagedBase := baseDirectory.value / "lib_ubuntu"
@@ -25,6 +25,7 @@ resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/mave
 
 libraryDependencies ++= Seq(
 
+  // uncomment this if you have xgboost built in your Maven repository
   // "ml.dmlc" % "xgboost4j" % "[0.7,)" % "provided" exclude("com.esotericsoftware.kryo", "kryo"),
 
   "com.softwaremill.quicklens" %% "quicklens" % "1.4.8",

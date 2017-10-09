@@ -1,3 +1,21 @@
 language: scala
 scala:
    - 2.11.11
+
+# dependent apt packages
+# taken from: https://github.com/dmlc/xgboost/blob/master/.travis.yml
+addons:
+ apt:
+   sources:
+     - ubuntu-toolchain-r-test
+     - george-edison55-precise-backports
+   packages:
+     - cmake
+     - cmake-data
+     - doxygen
+     - wget
+     - libcurl4-openssl-dev
+     - unzip
+     - graphviz
+     - gcc-4.8
+     - g++-4.8
