@@ -1,15 +1,20 @@
 import sbt.Keys._
 
 organization := "org.aertslab"
-name := "GRNBoost"
-version := "1.0"
+name         := "GRNBoost"
+description  := "A scalable gene regulatory network inference library"
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.11.11"
 sparkVersion := "2.1.0"
 sparkComponents ++= Seq("core", "mllib", "sql", "hive")
 
 javaOptions ++= Seq("-Xms1G", "-Xmx8G", "-XX:MaxPermSize=8G", "-XX:+CMSClassUnloadingEnabled")
 parallelExecution in Test := false
+
+// uncomment with respect to your operating system if you do not have xgboost in your Maven repository
+// unmanagedBase := baseDirectory.value / "lib_amazon_linux"
+// unmanagedBase := baseDirectory.value / "lib_max_os"
+unmanagedBase := baseDirectory.value / "lib_ubuntu"
 
 // See http://stackoverflow.com/questions/28565837/filename-too-long-sbt
 scalacOptions ++= Seq("-Xmax-classfile-name","78")
@@ -18,19 +23,17 @@ resolvers += Resolver.mavenLocal
 resolvers += Resolver.bintrayRepo("bkirwi", "maven")
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
 
-// Change this to another test framework if you prefer
 libraryDependencies ++= Seq(
 
-  "ml.dmlc"        % "xgboost4j"  % "0.7"   exclude("com.esotericsoftware.kryo", "kryo"),
+  // uncomment this if you have xgboost built in your Maven repository
+  // "ml.dmlc" % "xgboost4j" % "[0.7,)" % "provided" exclude("com.esotericsoftware.kryo", "kryo"),
 
-  "com.eharmony"   % "spotz-core" % "1.0.0",
-  "com.jsuereth"  %% "scala-arm"  % "2.0",
-  "com.monovore"  %% "decline"    % "0.1",
+  "com.softwaremill.quicklens" %% "quicklens" % "1.4.8",
+  "com.github.scopt"           %% "scopt"     % "3.6.0",
 
-  "org.scalactic" %% "scalactic"  % "3.0.1",
-  "LLNL"           % "spark-hdf5" % "0.0.4"  % "provided",
-
-  "com.holdenkarau" %% "spark-testing-base" % "2.0.0_0.6.0" % "test"
+  "org.scalactic"   %% "scalactic"          % "3.0.1"       % "test",
+  "ch.qos.logback"  %  "logback-classic"    % "1.2.3"       % "test",
+  "com.holdenkarau" %% "spark-testing-base" % "2.1.1_0.7.1" % "test"
 
 )
 

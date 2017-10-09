@@ -1,0 +1,36 @@
+
+# GRNBoost run log
+
+* Started: 2017-10-09:11.26.07, finished: 2017-10-09:11.26.07, diff: 00 seconds
+
+* CSC broadcast size estimation: not measured.
+
+* Inference configuration:
+iterated -> false
+boosterParams -> Map(silent -> 1, nthread -> 1, eta -> 0.01, max_depth -> 1)
+targets -> Set()
+regularized -> false
+nrFolds -> 5
+truncated -> None
+runMode -> DRY_RUN
+includeFlags -> false
+normalized -> false
+skipHeaders -> 0
+outputFormat -> LIST
+outputPath -> Some(src/test/resources/genie3/out.meh)
+missing -> Set(NaN, 0.0)
+estimationSet -> Left(20)
+nrBoostingRounds -> None
+report -> true
+sampleSize -> None
+regulatorsPath -> Some(src/test/resources/TF/mm9_TFs.txt)
+inputPath -> Some(src/test/resources/genie3/data.txt)
+nrPartitions -> None
+delimiter -> 	
+
+* Regression params:
+boosterParams -> Map(silent -> 1, nthread -> 1, eta -> 0.01, max_depth -> 1)
+nrRounds -> None
+nrFolds -> 5
+regularize -> Some(0.001)
+    

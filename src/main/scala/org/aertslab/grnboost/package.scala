@@ -1,10 +1,16 @@
 package org.aertslab
 
-import com.eharmony.spotz.optimizer.hyperparam.{RandomSampler, UniformDouble, UniformInt}
+import java.io.File
+
+import org.aertslab.grnboost.algo.TriangleRegularization._
+import org.apache.commons.io.FileUtils.{copyFile, deleteDirectory}
+import org.apache.log4j.Logger
+import org.apache.log4j.Logger.getLogger
 import org.apache.spark.ml.feature.VectorSlicer
 import org.apache.spark.ml.linalg.{Vector => MLVector}
-import org.apache.spark.sql.Dataset
-import org.aertslab.grnboost.util.Elbow
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.FloatType
+import org.apache.spark.sql.{Column, Dataset}
 
 import scala.util.Random
 
@@ -16,6 +22,7 @@ import scala.util.Random
 package object grnboost {
 
   val GRN_BOOST = "GRNBoost"
+  val URL       = "https://github.com/aertslab/GRNBoost/"
 
   type Path = String
 
@@ -23,8 +30,7 @@ package object grnboost {
   type Index = Long
   type Gene  = String
 
-  type BoosterParams     = Map[String, Any]
-  type BoosterParamSpace = Map[String, RandomSampler[_]]
+  type BoosterParams = Map[String, Any]
 
   type CellIndex = Int
   type CellCount = Int
@@ -32,6 +38,8 @@ package object grnboost {
   type GeneCount = Int
   type Round     = Int
   type Seed      = Int
+  type FoldNr    = Int
+  type Partition = Int
 
   type Expression = Float
   type Importance = Float
@@ -40,6 +48,9 @@ package object grnboost {
   type Frequency = Int
   type Gain      = Float
   type Cover     = Float
+
+  type TreeDump  = String
+  type ModelDump = Seq[TreeDump]
 
   val VALUES      = "values"
   val GENE        = "gene"
@@ -53,51 +64,51 @@ package object grnboost {
   val REGULATOR_NAME  = "regulator_name"
   val IMPORTANCE      = "importance"
 
-  val DEFAULT_NR_BOOSTING_ROUNDS = 100
+  val DEFAULT_MAX_BOOSTING_ROUNDS = 5000
 
-  val DEFAULT_NR_FOLDS    = 10
-  val DEFAULT_NR_TRIALS   = 1000L
-  val DEFAULT_SEED        = 666
-  val DEFAULT_EVAL_METRIC = "rmse"
+  val DEFAULT_ESTIMATION_SET = 20
+  val DEFAULT_NR_FOLDS       = 5
+  val DEFAULT_NR_TRIALS      = 1000L
+  val DEFAULT_SEED           = 666
+  val DEFAULT_EVAL_METRIC    = "rmse"
 
-  val XGB_THREADS = "nthread"
-  val XGB_SILENT  = "silent"
+  val XGB_THREADS   = "nthread"
+  val XGB_SILENT    = "silent"
+  val XGB_ETA       = "eta"
+  val XGB_SEED      = "seed"
+  val XGB_METRIC    = "eval_metric"
+  val XGB_MAX_DEPTH = "max_depth"
+
+  @transient val log: Logger = getLogger(GRN_BOOST)
 
   val DEFAULT_BOOSTER_PARAMS: BoosterParams = Map(
-    XGB_SILENT -> 1
+    XGB_SILENT    -> 1,
+    XGB_THREADS   -> 1,
+    XGB_ETA       -> 0.01,
+    XGB_MAX_DEPTH -> 1
   )
 
+  /**
+    * Pimp-my-class addon functions.
+    * @param boosterParams The implicit instance to wrap.
+    */
   implicit class BoosterParamsFunctions(boosterParams: BoosterParams) {
 
     def withDefaults: BoosterParams =
-      Some(boosterParams)
-        .map(p => if (p contains XGB_THREADS) p else p + (XGB_THREADS -> 1))
-        .map(p => if (p contains XGB_SILENT)  p else p + (XGB_SILENT -> 1))
-        .get
+      DEFAULT_BOOSTER_PARAMS
+        .foldLeft(boosterParams){ case (params, (k, v)) =>
+          if (params contains k) params else params updated (k, v) }
 
     def withSeed(seed: Seed): BoosterParams =
       boosterParams.updated("seed", seed)
 
   }
 
-  val DEFAULT_BOOSTER_PARAM_SPACE: BoosterParamSpace = Map(
-    // model complexity
-    "max_depth"        -> UniformInt(3, 10),
-    "min_child_weight" -> UniformDouble(1, 15),
-
-    // robustness to noise
-    "subsample"        -> UniformDouble(0.5, 1.0),
-    "colsample_bytree" -> UniformDouble(0.5, 1.0),
-
-    // learning rate
-    "eta"              -> UniformDouble(0.01, 0.2)
-  )
-
   /**
     * @param gene The gene name.
     * @param values The sparse expression vector.
     */
-  case class ExpressionByGene(gene: Gene, values: MLVector) { // TODO rename values -> "expression"
+  case class ExpressionByGene(gene: Gene, values: MLVector) {
     def response: Array[Expression] = values.toArray.map(_.toFloat)
   }
 
@@ -126,40 +137,53 @@ package object grnboost {
         .select($"gene", $"sliced".as("values"))
         .as[ExpressionByGene]
 
-  }
+    /**
+      * Create a new Dataset, with only the expression values per gene for a subset of cells, of specified size.
+      * The expression vectors in the new Dataset will have length equal to the sample size.
+      *
+      * @param nrCells The nr of cells to take into account in the sub-sampled Dataset.
+      * @return Returns the cell indices of the sub-sample and the resulting Dataset.
+      */
+    def subSample(nrCells: Int): (Seq[CellIndex], Dataset[ExpressionByGene]) = {
+      val count = ds.head.values.size
 
-  /**
-    * XGBoost regression output data structure.
-    *
-    * @param regulator The regulator gene name.
-    * @param target The target gene name.
-    * @param gain The inferred importance of the regulator vis-a-vis the target.
-    */
-  case class Regulation(regulator: Gene,
-                        target: Gene,
-                        gain: Gain)
+      if (nrCells >= count) (Nil, ds)
+      else {
+        val subset = randomSubset(nrCells, 0 until count)
+
+        (subset, ds.slice(subset))
+      }
+    }
+
+  }
 
   /**
     * Raw XGBoost regression output data structure.
     *
-    * @param regulator
-    * @param target
-    * @param gain
-    * @param elbow
+    * @param regulator The regulating gene.
+    * @param target The target gene.
+    * @param gain The gain score.
+    * @param include Flag to indicate whether the link passed the regularization filter.
     */
-  // TODO rename
-  case class RawRegulation(regulator: Gene,
-                           target: Gene,
-                           gain: Gain,
-                           elbow: Option[Int] = None) {
+  case class Regulation(regulator: Gene,
+                        target: Gene,
+                        gain: Gain,
+                        include: Int = 1) {
 
-    def mkString(d: String = "\t", showElbow: Boolean = true) =
-      if (showElbow)
-        s"${regulator}${d}${target}${d}${gain}${d}${elbow.getOrElse(-1)}"
-      else
-        s"${regulator}${d}${target}${d}${gain}"
+    def mkString(d: String = "\t"): String = productIterator.mkString(d)
 
   }
+
+  /**
+    * @param foldNr The fold nr.
+    * @param target The target gene.
+    * @param loss The loss value.
+    * @param rounds The number of rounds.
+    */
+  case class RoundsEstimation(@deprecated("unused for now") foldNr: FoldNr,
+                              target: Gene,
+                              loss: Loss,
+                              rounds: Int)
 
   /**
     * Training and test loss by boosting round.
@@ -171,110 +195,90 @@ package object grnboost {
     */
   case class LossByRound(target: Gene, train: Loss, test: Loss, round: Int) {
 
-    def mkString(d: String = "\t") = productIterator.mkString(d)
+    def mkString(d: String = "\t"): String = productIterator.mkString(d)
 
   }
 
   /**
+    * Not part of the implicit pimp class because of Scala TypeChecker StackOverflow issues.
+    *
+    * @param params The regression parameters.
+    * @return Returns the Dataset with regularization labels calculated with the Triangle method.
+    */
+  def withRegularizationLabels(ds: Dataset[Regulation], params: XGBoostRegressionParams): Dataset[Regulation] = {
+    import ds.sparkSession.implicits._
+
+    params
+      .regularize
+      .map(precision =>
+        ds
+          .rdd
+          .groupBy(_.target)
+          .values
+          .flatMap(_.toList match {
+            case Nil => Nil
+            case list =>
+              val sorted = list.sortBy(-_.gain)
+              val gains  = sorted.map(_.gain)
+              val result = (sorted zip labels(gains, precision)).map { case (reg, label) => reg.copy(include = label) }
+
+              result
+          })
+          .toDS
+      )
+      .getOrElse(ds)
+  }
+
+  /**
+    * @param ds The Dataset of Regulation entries.
+    * @param agg Spark SQL aggregation function, default: sum.
+    * @return Returns the Dataset, with gain scores normalized by an aggregation of the gain scores per target.
+    */
+  def normalizedByAggregate(ds: Dataset[Regulation], agg: Column => Column = sum): Dataset[Regulation] = {
+    import ds.sparkSession.implicits._
+
+    val aggImportanceByTarget =
+      ds
+        .groupBy($"target")
+        .agg(agg($"gain").as("aggregation"))
+
+    ds
+      .join(aggImportanceByTarget, ds("target") === aggImportanceByTarget("target"), "inner")
+      .withColumn("normalized", $"gain" / $"aggregation")
+      .select(
+        ds("regulator"),
+        ds("target"),
+        ds("include"),
+        $"normalized".as("gain").cast(FloatType))
+      .as[Regulation]
+  }
+
+
+  /**
     * Implicit pimp class.
-    * @param ds
+    * @param ds The Dataset of Regulation instances.
     */
   implicit class RegulationDatasetFunctions(val ds: Dataset[Regulation]) {
-    import ds.sparkSession.implicits._
-
-    /**
-      * @param top The maximum amount of regulations to keep.
-      * @return Returns the truncated Dataset.
-      */
-    def truncate(top: Int = 100000): Dataset[Regulation] =
-      ds
-        .sort($"importance".desc)
-        .rdd
-        .zipWithIndex
-        .filter(_._2 < top)
-        .keys
-        .toDS
-
-    /**
-      * Repartition to 1 and save to a single text file.
-      */
-    def saveTxt(path: Path, delimiter: String = "\t"): Unit =
-      ds
-        .rdd
-        .map(_.productIterator.mkString(delimiter))
-        .repartition(1)
-        .saveAsTextFile(path)
-
-  }
-
-  /**
-    * Implicit pimp class.
-    * @param ds
-    */
-  implicit class RawRegulationDatasetFunctions(val ds: Dataset[RawRegulation]) {
-
-    import ds.sparkSession.implicits._
-
-    def normalizeTargetGainOverSum(params: XGBoostRegressionParams) = ??? // TODO
-
-    def modifyRegulatorGainByVariance(params: XGBoostRegressionParams) = ??? // TODO
-
-    /**
-      * Add the elbow groups to the regulation connections.
-      *
-      * @param params
-      * @return Returns a Dataset.
-      */
-    def addElbowGroups(params: XGBoostRegressionParams): Dataset[RawRegulation] =
-      params
-        .elbow
-        .map(sensitivity =>
-          ds.rdd
-            .groupBy(_.target)
-            .values
-            .flatMap(it => {
-              it.toList match {
-                case Nil      => Nil
-                case x :: Nil => x.copy(elbow = Some(0)) :: Nil // elbow needs more than 1 y value
-                case list     =>
-                  val sorted = list.sortBy(-_.gain)
-                  val gains  = sorted.map(_.gain)
-                  val elbows = Elbow(gains.map(_.toDouble), sensitivity)
-
-                  sorted
-                    .zip(Elbow.toElbowGroups(elbows))
-                    .map{ case (reg, e) => if (e.isDefined) reg.copy(elbow = e) else reg }
-              }
-            })
-            .toDS
-        )
-        .getOrElse(ds)
 
     /**
       * Save the Dataset as a text file with specified delimiter
-      * @param path Target file path.
+      *
+      * @param out Target output file path.
+      * @param includeFlags Include the label.
       * @param delimiter Default tab.
       */
-    def saveTxt(path: Path, delimiter: String = "\t"): Unit =
+    def saveTxt(out: Path,
+                includeFlags: Boolean = true,
+                delimiter: String = "\t"): Unit = {
+
+      val nrCols = if (includeFlags) 4 else 3
+
       ds
         .rdd
-        .map(_.productIterator.mkString(delimiter))
+        .map(_.productIterator.take(nrCols).mkString(delimiter))
         .repartition(1)
-        .saveAsTextFile(path)
-
-  }
-
-  case class HyperParamsLoss(target: Gene,
-                             metric: String,
-                             rounds: Round,
-                             loss: Loss,
-                             max_depth: Int,
-                             min_child_weight: Double,
-                             subsample: Double,
-                             colsample_bytree: Double,
-                             eta: Double) {
-
-    def toBoosterParams: BoosterParams = ???
+        .saveAsTextFile(out)
+    }
 
   }
 
@@ -288,12 +292,17 @@ package object grnboost {
     *
     * @param boosterParams The XGBoost Map of booster parameters.
     * @param nrRounds The nr of boosting rounds.
-    * @param elbow Whether to use the elbow cutoff strategy, contains sensitivity parameter.
+    * @param nrFolds The nr of folds in CV packs.
+    * @param regularize Whether to use the L-curve cutoff strategy if Some. Contains threshold parameter.
     */
   case class XGBoostRegressionParams(boosterParams: BoosterParams = DEFAULT_BOOSTER_PARAMS,
-                                     nrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                                     elbow: Option[Float] = Some(0.5f),
-                                     showCV: Boolean = false)
+                                     nrRounds: Option[Int] = None,
+                                     nrFolds: Int = DEFAULT_NR_FOLDS,
+                                     regularize: Option[Double] = Some(DEFAULT_PRECISION)) extends ConfigLike {
+
+    def seed: Seed = boosterParams.get("seed").map(_.toString.toInt).getOrElse(DEFAULT_SEED)
+
+  }
 
   /**
     * Early stopping parameter, for stopping boosting rounds when the delta in loss values is smaller than the
@@ -304,37 +313,6 @@ package object grnboost {
     * @param lossDelta The loss delta over the window.
     */
   case class EarlyStopParams(size: Int = 10, lossDelta: Float = 0.01f)
-
-  /**
-    * Data structure holding parameters for XGBoost regression optimization.
-    *
-    * @param boosterParamSpace The space of booster parameters to search through for an optimal set.
-    * @param evalMetric The n-fold evaluation metric, default "rmse".
-    * @param nrTrialsPerBatch The number of random search trials per batch. Typically one batch per target is used,
-    *                         and batches are parallelized in different partitions.
-    * @param nrBatches The number of batches. Increase when partitioning trials for the same target.
-    * @param nrFolds The nr of cross validation folds in which to splice the training data.
-    * @param maxNrRounds The maximum number of boosting rounds.
-    * @param earlyStopParams Optional early stopping parameters.
-    * @param seed The seed for computing the random n folds.
-    * @param onlyBestTrial Specifies whether to return only the best trial or all trials for a target gene.
-    */
-  case class XGBoostOptimizationParams(boosterParamSpace: BoosterParamSpace = DEFAULT_BOOSTER_PARAM_SPACE,
-                                       extraBoosterParams: BoosterParams = Map.empty,
-                                       evalMetric: String = DEFAULT_EVAL_METRIC,
-                                       nrTrialsPerBatch: Int = 1000,
-                                       nrBatches: Int = 1,
-                                       nrFolds: Int = DEFAULT_NR_FOLDS,
-
-                                       maxNrRounds: Int = DEFAULT_NR_BOOSTING_ROUNDS,
-                                       earlyStopParams: Option[EarlyStopParams] = Some(EarlyStopParams()),
-
-                                       seed: Seed = DEFAULT_SEED,
-                                       onlyBestTrial: Boolean = true) {
-
-    assert(nrFolds > 0, s"nr folds must be greater than 0 (specified: $nrFolds) ")
-
-  }
 
   /**
     * @param seed The random seed.
@@ -359,6 +337,16 @@ package object grnboost {
       random(seed).shuffle(cellIndices).take(keep).sorted
     else
       random(seed).shuffle(cellIndices).sorted
+  }
+
+  implicit class ProductFunctions(p: Product) {
+
+    def toMap: Map[String, Any] =
+      p
+        .getClass.getDeclaredFields.map(_.getName)
+        .zip(p.productIterator.to)
+        .toMap
+
   }
 
 }
