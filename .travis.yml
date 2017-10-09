@@ -19,6 +19,7 @@ addons:
      - graphviz
      - gcc-4.8
      - g++-4.8
+     - libc6
 
 before_install:
   - export TRAVIS=scripts/travis
