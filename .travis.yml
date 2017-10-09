@@ -23,5 +23,5 @@ addons:
 before_install:
   - export TRAVIS=scripts/travis
   - source ${TRAVIS}/travis_setup_env.sh
-  - sudo apt-get update
-  - sudo apt-get -y install --only-upgrade libc6
+  - sudo apt-get -qq update
+  - sudo apt-get install -y --only-upgrade libc6
