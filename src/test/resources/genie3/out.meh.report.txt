@@ -1,7 +1,7 @@
 
 # GRNBoost run log
 
-* Started: 2017-10-09:10.26.41, finished: 2017-10-09:10.26.41, diff: 00 seconds
+* Started: 2017-10-09:11.26.07, finished: 2017-10-09:11.26.07, diff: 00 seconds
 
 * CSC broadcast size estimation: not measured.
 

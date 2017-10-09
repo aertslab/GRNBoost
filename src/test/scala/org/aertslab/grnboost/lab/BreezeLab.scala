@@ -104,7 +104,7 @@ class BreezeLab extends FlatSpec with Matchers {
   }
 
   def pearsonSign(a: SparseVector[Expression], b: SparseVector[Expression]): Int = {
-    assert(a.length == b.length, s"Vectors not of the same length (${a.length} != ${b.length})")
+    a.length shouldBe b.length
 
     val n = a.length
     val aDotB = a dot b
