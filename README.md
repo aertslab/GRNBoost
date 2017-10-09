@@ -1,6 +1,6 @@
 # GRNBoost
 
-[![Build Status](https://travis-ci.org/aertslab/GRNBoost.svg?branch=master))](https://travis-ci.org/aertslab/GRNBoost)
+[![Build Status](https://travis-ci.org/aertslab/GRNBoost.svg?branch=master)](https://travis-ci.org/aertslab/GRNBoost)
 
 ## Introduction
 
