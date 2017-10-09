@@ -25,7 +25,7 @@ resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/mave
 
 libraryDependencies ++= Seq(
 
-  "ml.dmlc" % "xgboost4j" % "[0.7,)" % "provided" exclude("com.esotericsoftware.kryo", "kryo"),
+  // "ml.dmlc" % "xgboost4j" % "[0.7,)" % "provided" exclude("com.esotericsoftware.kryo", "kryo"),
 
   "com.softwaremill.quicklens" %% "quicklens" % "1.4.8",
   "com.github.scopt"           %% "scopt"     % "3.6.0",
