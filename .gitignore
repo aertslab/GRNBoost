@@ -6,10 +6,10 @@
 /target/
 activator*
 /src/test/resources/bosch/*
-/src/test/resources/out/
-/src/test/resources/config/
+/src/test/resources/out/*
+/src/test/resources/dream5/*
+/src/test/resources/config/profile.props
 /src/test/resources/parquet/
-/src/test/resources/zeisel/*.txt
 /.idea/
-.sbtopts
 derby.log
+/docs/_build/

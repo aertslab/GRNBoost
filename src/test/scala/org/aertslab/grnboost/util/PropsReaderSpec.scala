@@ -7,7 +7,7 @@ import org.scalatest.{Matchers, FlatSpec}
   */
 class PropsReaderSpec extends FlatSpec with Matchers {
 
-  "PropsReader" should "pass the smoke test" in {
+  "PropsReader" should "pass the smoke test" ignore {
     PropsReader.show
   }
 

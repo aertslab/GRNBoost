@@ -5,12 +5,17 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.concurrent.TimeUnit._
 
+import org.joda.time.DateTime
+
 import scala.concurrent.duration.Duration
 
 /**
   * @author Thomas Moerman
   */
 object TimeUtils {
+
+  def diff(start: DateTime, stop: DateTime): Duration =
+    Duration(stop.getMillis - start.getMillis, MILLISECONDS)
 
   def profile[R](block: => R): (R, Duration) = {
     val start  = nanoTime

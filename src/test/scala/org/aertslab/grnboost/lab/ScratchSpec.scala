@@ -13,7 +13,7 @@ class ScratchSpec extends FlatSpec with Matchers {
     Set("a", "b").apply("a")
   }
 
-  "meh" should "meh" in {
+  "formatting a Time instance" should "meh" in {
     val bla = Calendar.getInstance.getTime.formatted("yyyy.MM.dd.hh")
     println(bla)
   }

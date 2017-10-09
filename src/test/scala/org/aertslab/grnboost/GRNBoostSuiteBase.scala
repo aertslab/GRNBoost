@@ -1,7 +1,6 @@
 package org.aertslab.grnboost
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
-import ml.dmlc.xgboost4j.scala.Booster
 import org.apache.spark.SparkConf
 import org.scalatest.Suite
 
@@ -18,7 +17,7 @@ trait GRNBoostSuiteBase extends DataFrameSuiteBase { self: Suite =>
       .asInstanceOf[ch.qos.logback.classic.Logger]
       .setLevel(ch.qos.logback.classic.Level.INFO)
   } catch {
-    case e: Throwable => Unit // nom nom nom
+    case _: Throwable => Unit // nom nom nom
   }
 
   override def conf: SparkConf =
