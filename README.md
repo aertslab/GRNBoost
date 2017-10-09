@@ -29,4 +29,6 @@ GRNBoost is available via the [3-Clause BSD license](https://opensource.org/lice
 
 GRNBoost was developed at the [Laboratory of Computational Biology](https://gbiomed.kuleuven.be/english/research/50000622/lcb) ([Stein Aerts](http://www.vib.be/en/research/scientists/Pages/Stein-Aerts-Lab.aspx)) as an optional component for the [SCENIC](https://gbiomed.kuleuven.be/english/research/50000622/lcb/tools/scenic) workflow.
 
-__Aibar S, González-Blas CB, Moerman T, Wouters J__, Huynh-Thu VA, __Imrichová H, Kalender Atak Z, Hulselmans G__, Dewaele M, Rambow F, Geurts P, Aerts J, Marine JC, van den Oord J, __Aerts S.__ [SCENIC: Single-Cell Regulatory Network Inference And Clustering](http://biorxiv.org/content/early/2017/05/31/144501). bioRxiv Preprint 2017 May 31. https://doi.org/10.1101/144501
+Sara Aibar,	Carmen Bravo González-Blas,	Thomas Moerman,	Vân Anh Huynh-Thu,	Hana Imrichova,	Gert Hulselmans,	
+Florian Rambow,	Jean-Christophe Marine,	Pierre Geurts,	Jan Aerts,	Joost van den Oord,	Zeynep Kalender Atak,	
+Jasper Wouters & Stein Aerts [SCENIC: single-cell regulatory network inference and clustering](http://dx.doi.org/10.1038/nmeth.4463). Nature Methods (2017) doi:10.1038/nmeth.4463
