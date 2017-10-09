@@ -19,3 +19,7 @@ addons:
      - graphviz
      - gcc-4.8
      - g++-4.8
+
+before_install:
+  - export TRAVIS=scripts/travis
+  - source ${TRAVIS}/travis_setup_env.sh
