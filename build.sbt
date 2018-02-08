@@ -40,3 +40,4 @@ libraryDependencies ++= Seq(
 // assembly config
 assemblyJarName := "GRNBoost.jar"
 test in assembly := {}
+mainClass in assembly := Some("org.aertslab.grnboost.GRNBoost")
